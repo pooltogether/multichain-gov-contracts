@@ -6,10 +6,11 @@ import "openzeppelin-contracts/contracts/utils/math/SafeCast.sol";
 
 import "hardhat-core/console.sol";
 
+import "./interfaces/IEpochVoter.sol";
 import "./libraries/ExtendedSafeCast.sol";
 import "./libraries/BinarySearchLib.sol";
 
-abstract contract EpochVoter is ERC20 {
+abstract contract EpochVoter is ERC20, IEpochVoter {
     using SafeMath for uint256;
     using SafeCast for uint256;
     using ExtendedSafeCast for uint256;
@@ -112,7 +113,7 @@ abstract contract EpochVoter is ERC20 {
         }
     }
 
-    function currentVotes(address _account) external view returns (uint112) {
+    function currentVotes(address _account) external override view returns (uint112) {
         return _currentVotes(_account);
     }
 
@@ -127,7 +128,7 @@ abstract contract EpochVoter is ERC20 {
         return lastBalance.epoch < epoch ? lastBalance.balance : lastBalance.minimum;
     }
 
-    function votesAtEpoch(address _account, uint32 _epoch) external view returns (uint112) {
+    function votesAtEpoch(address _account, uint32 _epoch) external override view returns (uint112) {
         require(_epoch < _currentEpoch(), "must be past epoch");
         EpochBalance memory epochBalance = epochBalances[_account][_binarySearch(epochBalances[_account], _epoch)];
         return epochBalance.epoch < _epoch ? epochBalance.balance : epochBalance.minimum;

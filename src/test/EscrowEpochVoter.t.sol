@@ -14,7 +14,7 @@ contract EscrowEpochVoterTest is DSTest {
     EscrowEpochVoter voter;
     ERC20Mintable token;
 
-    uint32 epochDuration = 100;
+    uint32 constant epochDuration = 100;
 
     function setUp() public {
         token = new ERC20Mintable();
