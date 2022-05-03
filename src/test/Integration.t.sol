@@ -25,7 +25,7 @@ contract IntegrationTest is DSTest {
         governorBranch = new GovernorBranch(epochVoter);
         IGovernorBranch[] memory branches = new IGovernorBranch[](1);
         branches[0] = governorBranch;
-        governorRoot = new GovernorRoot(epochVoter, branches);
+        governorRoot = new GovernorRoot(branches);
         governorBranch.setGovernorRoot(governorRoot);
     }
 
@@ -39,26 +39,28 @@ contract IntegrationTest is DSTest {
             data: abi.encodeWithSelector(governorRoot.removeBranch.selector, address(governorBranch))
         });
 
+        bytes32 executionHash = governorBranch.computeExecutionHash(calls, 1);
+        uint32 epoch = 1;
+        uint64 endTimestamp = epochDuration*2 + 5 days;
+
         token.mint(address(this), 100_000 ether);
         token.approve(address(epochVoter), 100_000 ether);
         epochVoter.deposit(100_000 ether, address(this));
-        cheats.warp(epochDuration);
-        (bytes32 executionHash, uint256 executionNonce) = governorBranch.requestProposal(calls, "");
         cheats.warp(epochDuration*2);
-        governorBranch.castVote(executionHash, 1, 1, epochDuration + 5 days, 1);
-        cheats.warp(epochDuration + 5 days);
-        governorBranch.addVotes(executionHash, 1, 1, epochDuration + 5 days);
-        cheats.warp(epochDuration + 5 days + 7 days);
+        governorBranch.castVote(executionHash, epoch, endTimestamp, 1);
+        cheats.warp(endTimestamp);
+        governorBranch.addVotes(executionHash, epoch, endTimestamp);
+        cheats.warp(endTimestamp + 7 days);
         
         bytes32 proposalHash = keccak256(
             abi.encode(
                 executionHash,
-                1,
-                abi.encode(1, epochDuration + 5 days)
+                abi.encode(epoch, endTimestamp)
             )
         );
         governorRoot.queueProposal(proposalHash, governorBranch);
-        governorBranch.executeProposal(block.chainid, address(governorBranch), 1, calls, 1, abi.encode(1, epochDuration + 5 days));
+
+        governorBranch.executeProposal(block.chainid, address(governorBranch), 1, calls, abi.encode(epoch, endTimestamp));
 
         assertTrue(!governorRoot.isBranch(governorBranch), "branch is no longer");
     }

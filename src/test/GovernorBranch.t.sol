@@ -14,7 +14,7 @@ contract GovernorBranchTest is DSTest {
     GovernorBranch governorBranch;
     IEpochVoter epochVoter = IEpochVoter(0x0000000000000000000000000000000000000007);
     IGovernorRoot governorRoot = IGovernorRoot(0x0000000000000000000000000000000000000008);
-    bytes32 randomHash = bytes32(0x0000000000000000000000000000000000000000000000000000000000000022);
+    bytes32 executionHash = bytes32(0x0000000000000000000000000000000000000000000000000000000000000022);
 
     function setUp() public {
         cheats.clearMockedCalls();
@@ -82,36 +82,17 @@ contract GovernorBranchTest is DSTest {
 
     function testComputeExecutionHash() public {
         (GovernorBranch.Call[] memory calls, bytes32 executionHash) = _makeExecution(1);
-        assertEq(governorBranch.computeExecutionHash(calls, "", 1), executionHash, "exec hash matches");
-    }
-
-    function testRequestProposalNoVotes() public {
-        cheats.expectRevert("does not have min votes");
-        try governorBranch.requestProposal(_makeCalls(), "hallo") {} catch {}
-    }
-
-    function testRequestProposal() public {
-        _mockCurrentVotes(10 ether);
-
-        (GovernorBranch.Call[] memory calls, bytes32 executionHash) = _makeExecution(1);
-
-        cheats.mockCall(
-            address(governorRoot),
-            abi.encodeWithSelector(governorRoot.requestProposal.selector, executionHash),
-            abi.encode(true)
-        );
-
-        governorBranch.requestProposal(calls, "hallo");
+        assertEq(governorBranch.computeExecutionHash(calls, 1), executionHash, "exec hash matches");
     }
 
     function testQueueProposal() public {
         cheats.prank(address(governorRoot));
         cheats.warp(8);
-        governorBranch.queueProposal(randomHash);
+        governorBranch.queueProposal(executionHash);
         (
             uint64 timestamp,
             bool executed
-        ) = governorBranch.queuedProposals(randomHash);
+        ) = governorBranch.queuedProposals(executionHash);
         assertEq(timestamp, 8, "timestamp matches");
         assertTrue(!executed, "has not been executed");
     }
@@ -123,7 +104,6 @@ contract GovernorBranchTest is DSTest {
         bytes32 proposalHash = keccak256(
             abi.encode(
                 executionHash,
-                1,
                 ""
             )
         );
@@ -135,7 +115,6 @@ contract GovernorBranchTest is DSTest {
             address(governorBranch),
             1,
             calls,
-            1,
             ""
         );
 
@@ -151,14 +130,14 @@ contract GovernorBranchTest is DSTest {
         _mockVotesAtEpoch(10 ether, 0);
 
         governorBranch.castVote(
-            randomHash,
-            1,
+            executionHash,
             0,
             5 days,
             1
         );
 
-        bytes32 proposalHash = keccak256(abi.encode(randomHash, 1, abi.encode(0, 5 days)));
+        bytes32 proposalHash = keccak256(abi.encode(executionHash, abi.encode(0, 5 days)));
+
         (
             uint256 againstVotes,
             uint256 forVotes,
@@ -173,8 +152,7 @@ contract GovernorBranchTest is DSTest {
         cheats.warp(10 days);
         cheats.expectRevert("voting ended");
         try governorBranch.castVote(
-            randomHash,
-            1,
+            executionHash,
             0,
             5 days,
             1
@@ -186,8 +164,7 @@ contract GovernorBranchTest is DSTest {
         _mockVotesAtEpoch(10 ether, 0);
         cheats.expectRevert("epoch has not ended");
         try governorBranch.castVote(
-            randomHash,
-            1,
+            executionHash,
             0,
             5 days,
             1
@@ -198,16 +175,14 @@ contract GovernorBranchTest is DSTest {
         _mockCurrentEpoch(1);
         _mockVotesAtEpoch(10 ether, 0);
         governorBranch.castVote(
-            randomHash,
-            1,
+            executionHash,
             0,
             5 days,
             1
         );
         cheats.expectRevert("already voted");
         try governorBranch.castVote(
-            randomHash,
-            1,
+            executionHash,
             0,
             5 days,
             1
@@ -218,26 +193,24 @@ contract GovernorBranchTest is DSTest {
         _mockCurrentEpoch(1);
         _mockVotesAtEpoch(10 ether, 0);
         governorBranch.castVote(
-            randomHash,
-            1,
+            executionHash,
             0,
             5 days,
             1
         );
-        bytes32 proposalHash = keccak256(abi.encode(randomHash, 1, abi.encode(0, 5 days)));
+        bytes32 proposalHash = keccak256(abi.encode(executionHash, 1, abi.encode(0, 5 days)));
         cheats.expectCall(
             address(governorRoot),
-            abi.encodeWithSelector(governorRoot.addVotes.selector, 0, 10 ether, 0, proposalHash)
+            abi.encodeWithSelector(governorRoot.addVotes.selector, 0, 10 ether, 0, executionHash, 0, 5 days)
         );
         cheats.mockCall(
             address(governorRoot),
-            abi.encodeWithSelector(governorRoot.addVotes.selector, 0, 10 ether, 0, proposalHash),
+            abi.encodeWithSelector(governorRoot.addVotes.selector, 0, 10 ether, 0, executionHash, 0, 5 days),
             abi.encode(true)
         );
         cheats.warp(10 days);
         governorBranch.addVotes(
-            randomHash,
-            1,
+            executionHash,
             0,
             5 days
         );

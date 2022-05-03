@@ -35,9 +35,6 @@ contract GovernorBranch is IGovernorBranch {
     }
     
     mapping(bytes32 => mapping(address => bool)) hasVoted;
-
-    uint256 public constant THRESHOLD = 10 ether;
-
     mapping(bytes32 => Proposal) public queuedProposals;
     mapping(bytes32 => ProposalVote) public proposalVotes;
 
@@ -55,9 +52,8 @@ contract GovernorBranch is IGovernorBranch {
 
     function computeExecutionHash(
         Call[] calldata calls,
-        bytes calldata message,
         uint256 nonce
-    ) public returns (bytes32) {
+    ) external returns (bytes32) {
         bytes32 callsHash = hashCalls(calls);
         return keccak256(abi.encode(
             block.chainid,
@@ -65,17 +61,6 @@ contract GovernorBranch is IGovernorBranch {
             nonce,
             callsHash
         ));
-    }
-
-    function requestProposal(
-        Call[] calldata calls,
-        bytes calldata message
-    ) external returns (bytes32 executionHash, uint256 executionNonce) {
-        require(epochVoter.currentVotes(msg.sender) >= THRESHOLD, "does not have min votes");
-        executionNonce = nonce + 1;
-        nonce = executionNonce;
-        executionHash = computeExecutionHash(calls, message, executionNonce);
-        governorRoot.requestProposal(executionHash);
     }
 
     function queueProposal(bytes32 proposalHash) external override requireRoot(msg.sender) {
@@ -90,7 +75,6 @@ contract GovernorBranch is IGovernorBranch {
         address branchAddress,
         uint256 branchNonce,
         Call[] calldata calls,
-        uint256 rootNonce,
         bytes calldata data
     ) external {
         bytes32 callsHash = hashCalls(calls);
@@ -103,7 +87,6 @@ contract GovernorBranch is IGovernorBranch {
         bytes32 proposalHash = keccak256(
             abi.encode(
                 executionHash,
-                rootNonce,
                 data
             )
         );
@@ -122,19 +105,12 @@ contract GovernorBranch is IGovernorBranch {
 
     function castVote(
         bytes32 executionHash,
-        uint256 rootNonce,
         uint32 startEpoch,
         uint64 endTimestamp,
         uint8 support
     ) external {
         require(block.timestamp < endTimestamp, "voting ended");
-        bytes32 proposalHash = keccak256(
-            abi.encode(
-                executionHash,
-                rootNonce,
-                abi.encode(startEpoch, endTimestamp)
-            )
-        );
+        bytes32 proposalHash = _encodeProposalHash(executionHash, startEpoch, endTimestamp);
         require(epochVoter.currentEpoch() > startEpoch, "epoch has not ended");
         require(!hasVoted[proposalHash][msg.sender], "already voted");
 
@@ -151,25 +127,31 @@ contract GovernorBranch is IGovernorBranch {
 
     function addVotes(
         bytes32 executionHash,
-        uint256 rootNonce,
         uint32 startEpoch,
         uint64 endTimestamp
     ) external {
         require(block.timestamp >= endTimestamp, "vote has not ended");
-        bytes32 proposalHash = keccak256(
-            abi.encode(
-                executionHash,
-                rootNonce,
-                abi.encode(startEpoch, endTimestamp)
-            )
-        );
-        ProposalVote memory proposalVote = proposalVotes[proposalHash];
-
+        ProposalVote memory proposalVote = proposalVotes[_encodeProposalHash(executionHash, startEpoch, endTimestamp)];
         governorRoot.addVotes(
             proposalVote.againstVotes,
             proposalVote.forVotes,
             proposalVote.abstainVotes,
-            proposalHash
+            executionHash,
+            startEpoch,
+            endTimestamp
+        );
+    }
+
+    function _encodeProposalHash(
+        bytes32 executionHash,
+        uint32 startEpoch,
+        uint64 endTimestamp
+    ) internal view returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                executionHash,
+                abi.encode(startEpoch, endTimestamp)
+            )
         );
     }
 
