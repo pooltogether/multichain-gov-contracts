@@ -6,7 +6,7 @@ There are three contracts:
 
 - EscrowEpochVoter: ERC20 token wrapper that mitigates double-voting by splitting time into large epochs and tracking minimum balances for the epoch.
 - GovernorBranch: users interact with branches to create proposals and vote.
-- GovernorRoot: branches combine their votes to determine consensus. Consensus is broadcast to any branch that requires execution.
+- GovernorRoot: the root combines vote aggregates from branches to determine consensus. If a proposal passes, it can be sent to any branches that require execution.
 
 The flow is like so:
 
