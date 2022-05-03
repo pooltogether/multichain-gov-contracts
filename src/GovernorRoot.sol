@@ -4,9 +4,9 @@ import "./interfaces/IEpochSource.sol";
 import "./interfaces/IGovernorRoot.sol";
 import "./interfaces/IGovernorBranch.sol";
 
-contract GovernorRoot is IGovernorRoot {
+import "hardhat-core/console.sol";
 
-    uint256 public nonce;
+contract GovernorRoot is IGovernorRoot {
 
     struct Proposal {
         uint32 epoch;
@@ -25,10 +25,7 @@ contract GovernorRoot is IGovernorRoot {
     mapping(IGovernorBranch => bool) branches;
     mapping(bytes32 => Proposal) public proposals;
 
-    IEpochSource public epochSource;
-
-    constructor(IEpochSource _epochSource, IGovernorBranch[] memory _branches) {
-        epochSource = _epochSource;
+    constructor(IGovernorBranch[] memory _branches) {
         for (uint i = 0; i < _branches.length; i++) {
             branches[_branches[i]] = true;
         }
@@ -46,51 +43,30 @@ contract GovernorRoot is IGovernorRoot {
         return branches[_branch];
     }
 
-    function requestProposal(
-        bytes32 executionHash
-    ) external override returns (bool) {
-        createProposal(executionHash);
-        return true;
-    }
-
-    function createProposal(
-        bytes32 executionHash
-    ) public requireBranch(msg.sender) returns (
-        uint256 rootNonce,
-        bytes32 proposalHash,
-        bytes memory data
-    ) {
-        nonce += 1;
-        rootNonce = nonce;
-        uint32 epoch = epochSource.currentEpoch();
-        uint64 endTimestamp = uint64(block.timestamp + VOTE_DURATION);
-        data = abi.encode(epoch, endTimestamp);
-        proposalHash = keccak256(
-            abi.encode(
-                executionHash,
-                rootNonce,
-                data
-            )
-        );
-        proposals[proposalHash].epoch = epoch;
-        proposals[proposalHash].endTimestamp = endTimestamp;
-    }
-
     function addVotes(
         uint256 againstVotes,
         uint256 forVotes,
         uint256 abstainVotes,
-        bytes32 proposalHash
+        bytes32 executionHash,
+        uint32 epoch,
+        uint64 endTimestamp
     ) external override requireBranch(msg.sender) returns (bool) {
-        Proposal memory proposal = proposals[proposalHash];
+        bytes32 proposalHash = keccak256(
+            abi.encode(
+                executionHash,
+                abi.encode(epoch, endTimestamp)
+            )
+        );
         require(!hasVoted[proposalHash][msg.sender], "already voted");
-        require(proposal.endTimestamp > 0, "does not exist");
 
+        Proposal memory proposal = proposals[proposalHash];
+        proposal.epoch = epoch;
+        proposal.endTimestamp = endTimestamp;
         proposal.abstainVotes += abstainVotes;
         proposal.forVotes += forVotes;
         proposal.againstVotes += againstVotes;
-
         proposals[proposalHash] = proposal;
+
         hasVoted[proposalHash][msg.sender] = true;
 
         return true;

@@ -10,18 +10,26 @@ contract GovernorRootTest is DSTest {
 
     CheatCodes cheats = CheatCodes(HEVM_ADDRESS);
     GovernorRoot governorRoot;
-    IEpochSource epochSource = IEpochSource(0x0000000000000000000000000000000000000001);
     IGovernorBranch governorBranch = IGovernorBranch(0x0000000000000000000000000000000000000002);
     IGovernorBranch governorBranch2 = IGovernorBranch(0x0000000000000000000000000000000000000003);
 
     bytes32 callsHash = bytes32(0x0000000000000000000000000000000000000000000000000000000000000022);
     uint256 branchChainId = 1;
     uint256 branchNonce = 1;
+    uint32 epoch = 1;
+    uint64 endTimestamp = 5 days;
+    bytes32 executionHash = keccak256(abi.encode(
+        branchChainId, address(governorBranch), branchNonce, callsHash
+    ));
+    bytes32 proposalHash = keccak256(abi.encode(
+        executionHash,
+        abi.encode(epoch, endTimestamp)
+    ));
 
     function setUp() public {
         IGovernorBranch[] memory branches = new IGovernorBranch[](1);
         branches[0] = governorBranch;
-        governorRoot = new GovernorRoot(epochSource, branches);
+        governorRoot = new GovernorRoot(branches);
     }
 
     function testAddBranch() public {
@@ -50,70 +58,15 @@ contract GovernorRootTest is DSTest {
         } catch Error(string memory) {}
     }
 
-    function _mockCurrentEpoch(uint epoch) internal {
-        cheats.mockCall(
-            address(epochSource),
-            abi.encodeWithSelector(epochSource.currentEpoch.selector),
-            abi.encode(epoch)
-        );
-    }
-
-    function _createProposal() internal returns (
-        uint256 rootNonce,
-        bytes32 proposalHash,
-        bytes memory data,
-        bytes32 executionHash
-    ) {
-        cheats.startPrank(address(governorBranch));
-        _mockCurrentEpoch(1);
-        executionHash = keccak256(abi.encode(
-            branchChainId, address(governorBranch), branchNonce, callsHash
-        ));
-        (
-            rootNonce,
-            proposalHash,
-            data
-        ) = governorRoot.createProposal(executionHash);
-        cheats.stopPrank();
-    }
-
-    function testCreateProposal() public {
-        (
-            uint256 rootNonce,
-            bytes32 proposalHash,
-            bytes memory data,
-            bytes32 executionHash
-        ) = _createProposal();
-
-        assertEq0(data, abi.encode(1, 5 days), "epoch and end timestamp encoded");
-        assertEq(rootNonce, 1, "root nonce matches");
-        assertEq(proposalHash, keccak256(
-            abi.encode(
-                executionHash,
-                rootNonce,
-                data
-            )
-        ), "proposal hash is correct");
-        assertTrue(governorRoot.isProposal(proposalHash));
-        cheats.stopPrank();
-    }
-
     function testAddVotes() public {
-        (
-            uint256 rootNonce,
-            bytes32 proposalHash,
-            bytes memory data,
-            bytes32 executionHash
-        ) = _createProposal();
-
-        cheats.startPrank(address(governorBranch));
-        _mockCurrentEpoch(2);
-
+        cheats.prank(address(governorBranch));
         governorRoot.addVotes(
             1,
             2,
             3,
-            proposalHash
+            executionHash,
+            epoch,
+            endTimestamp
         );
 
         (
@@ -130,33 +83,23 @@ contract GovernorRootTest is DSTest {
     }
 
     function testAddVotesTwice() public {
-        (,bytes32 proposalHash,,) = _createProposal();
-
-        cheats.startPrank(address(governorBranch));
-        _mockCurrentEpoch(2);
-
+        cheats.prank(address(governorBranch));
         governorRoot.addVotes(
             1,
             2,
             3,
-            proposalHash
+            executionHash,
+            epoch,
+            endTimestamp
         );
 
         cheats.expectRevert("already voted");
-        try governorRoot.addVotes(1, 2, 3, proposalHash) {} catch {}
-    }
-
-    function testAddVotesNonExistentProposal() public {
-        cheats.expectRevert("does not exist");
-        try governorRoot.addVotes(1, 2, 3, callsHash) {} catch {}
+        try governorRoot.addVotes(1, 2, 3, executionHash, epoch, endTimestamp) {} catch {}
     }
 
     function testHasPassed() public {
-        (,bytes32 proposalHash,,) = _createProposal();
-        cheats.startPrank(address(governorBranch));
-        _mockCurrentEpoch(2);
-
-        governorRoot.addVotes(0, 100_000 ether, 0, proposalHash);
+        cheats.prank(address(governorBranch));
+        governorRoot.addVotes(0, 100_000 ether, 0, executionHash, epoch, endTimestamp);
 
         assertTrue(!governorRoot.hasPassed(proposalHash), "proposal should not have passed");
 
