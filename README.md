@@ -17,6 +17,8 @@ The flow is like so:
 5. If the proposal passes (grace period ends and quorum is met) anyone can tell the GovernorRoot to send the "queueProposal" message to a branch. This message includes the proposal hash. The message only needs to be sent to branches that have calls to execute. The GovernorBranch records the proposal hash as queued.
 6. Anyone can submit the full execution details to a GovernorBranch to execute the contents of a proposal.
 
+To see the above flow in action please refer to the [end-to-end integration test](./src/test/Integration.t.sol)
+
 **Note: the cross-chain transport layer has not yet been built.**
 
 You can see how this design separates execution from consensus. Inter-chain communication is minimized to the messages:
@@ -24,6 +26,8 @@ You can see how this design separates execution from consensus. Inter-chain comm
 - Proposal request from the GovernorBranch to the GovernorRoot.
 - Submit vote totals from all GovernorBranches to the GovernorRoot.
 - Queue proposal from the GovernorRoot to only GovernorBranches that require execution.
+
+
 
 # Development
 
