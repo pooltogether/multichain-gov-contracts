@@ -60,8 +60,8 @@ contract GovernorRoot is IGovernorRoot {
         bytes32 proposalHash,
         bytes memory data
     ) {
-        nonce += 1;
-        rootNonce = nonce;
+        rootNonce = nonce + 1;
+        nonce = rootNonce;
         uint32 epoch = epochSource.currentEpoch();
         uint64 endTimestamp = uint64(block.timestamp + VOTE_DURATION);
         data = abi.encode(epoch, endTimestamp);

@@ -70,4 +70,23 @@ contract EpochVoterTest is DSTest {
         cheats.warp(epochDuration*3);
         assertEq(voter.votesAtEpoch(address(this), 1), 10 ether);
     }
+
+    function testDelegate() public {
+        voter.mint(address(this), 10 ether);
+        voter.delegate(ACCOUNT, 10 ether);
+        assertEq(voter.currentVotes(address(this)), 0);
+        cheats.warp(epochDuration);
+        assertEq(voter.currentVotes(ACCOUNT), 10 ether);
+    }
+
+    function testUndelegate() public {
+        voter.mint(address(this), 10 ether);
+        voter.delegate(ACCOUNT, 10 ether);
+        cheats.warp(epochDuration);
+        voter.undelegate(ACCOUNT, 5 ether);
+        assertEq(voter.currentVotes(ACCOUNT), 5 ether);
+        cheats.warp(epochDuration*2);
+        assertEq(voter.currentVotes(address(this)), 5 ether);
+    }
+
 }

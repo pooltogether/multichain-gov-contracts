@@ -4,7 +4,7 @@ import "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import "openzeppelin-contracts/contracts/utils/math/SafeMath.sol";
 import "openzeppelin-contracts/contracts/utils/math/SafeCast.sol";
 
-import "hardhat-core/console.sol";
+import "forge-std/console2.sol";
 
 import "./interfaces/IEpochVoter.sol";
 import "./libraries/ExtendedSafeCast.sol";
@@ -25,6 +25,7 @@ abstract contract EpochVoter is ERC20, IEpochVoter {
     }
 
     mapping(address => EpochBalance[]) epochBalances;
+    mapping(address => mapping(address => uint256)) delegationBalances;
 
     constructor(
         string memory _name,
@@ -42,6 +43,24 @@ abstract contract EpochVoter is ERC20, IEpochVoter {
 
     function _currentEpoch() internal virtual view returns (uint32) {
         return ((block.timestamp - startTimestamp) / duration).toUint32();
+    }
+
+    function delegationBalanceOf(address _delegator, address _delegatee) external view returns (uint256) {
+        return delegationBalances[_delegator][_delegatee];
+    }
+
+    function delegate(address delegate, uint256 amount) external {
+        uint32 epoch = _currentEpoch();
+        _burn(msg.sender, amount);
+        _increaseVotingPower(delegate, amount, epoch);
+        delegationBalances[msg.sender][delegate] += amount;
+    }
+
+    function undelegate(address delegate, uint256 amount) external {
+        uint32 epoch = _currentEpoch();
+        _mint(msg.sender, amount);
+        _decreaseVotingPower(delegate, amount, epoch);
+        delegationBalances[msg.sender][delegate] -= amount;
     }
 
     /**
@@ -65,56 +84,63 @@ abstract contract EpochVoter is ERC20, IEpochVoter {
     ) internal override {
         uint32 epoch = _currentEpoch();
 
-
-
         if (from != address(0)) {
-            EpochBalance[] storage fromBalances = epochBalances[from];
-            uint256 fromBalanceLength = fromBalances.length;
-            EpochBalance memory fromBalance;
-            if (fromBalanceLength > 0) {
-                fromBalance = fromBalances[fromBalances.length - 1];
-            }
-
-            require(fromBalance.balance >= amount, "ERC20: transfer amount exceeds balance");
-
-            if (fromBalanceLength == 0 || fromBalance.epoch < epoch) {
-                // create new one
-                uint112 newBalance = uint256(fromBalance.balance).sub(amount).toUint112();
-                fromBalances.push(EpochBalance({
-                    epoch: epoch,
-                    balance: newBalance,
-                    minimum: newBalance
-                }));
-            } else {
-                fromBalance.balance = uint256(fromBalance.balance).sub(amount).toUint112();
-                fromBalance.minimum = fromBalance.minimum > amount ? uint256(fromBalance.minimum).sub(amount).toUint112() : 0;
-                fromBalances[fromBalanceLength - 1] = fromBalance;
-            }
+            _decreaseVotingPower(from, amount, epoch);
         }
 
         if (to != address(0)) {
-            EpochBalance[] storage toBalances = epochBalances[to];
-            uint256 toBalanceLength = toBalances.length;
-            EpochBalance memory toBalance;
-            if (toBalanceLength > 0) {
-                toBalance = toBalances[toBalances.length - 1];
-            }
-
-            if (toBalanceLength == 0 || toBalance.epoch < epoch) {
-                toBalances.push(EpochBalance({
-                    epoch: epoch,
-                    balance: uint256(toBalance.balance).add(amount).toUint112(),
-                    minimum: toBalance.balance
-                }));
-            } else {
-                toBalance.balance = uint256(toBalance.balance).add(amount).toUint112();
-                toBalances[toBalanceLength - 1] = toBalance;
-            }
+            _increaseVotingPower(to, amount, epoch);
         }
     }
 
     function currentVotes(address _account) external override view returns (uint112) {
         return _currentVotes(_account);
+    }
+
+    function _decreaseVotingPower(address _account, uint256 _amount, uint32 _epoch) internal {
+        EpochBalance[] storage accountEpochBalances = epochBalances[_account];
+        uint256 fromBalanceLength = accountEpochBalances.length;
+        EpochBalance memory fromBalance;
+        if (fromBalanceLength > 0) {
+            fromBalance = accountEpochBalances[accountEpochBalances.length - 1];
+        }
+
+        require(fromBalance.balance >= _amount, "ERC20: transfer amount exceeds balance");
+
+        if (fromBalanceLength == 0 || fromBalance.epoch < _epoch) {
+            // create new one
+            uint112 newBalance = uint256(fromBalance.balance).sub(_amount).toUint112();
+            accountEpochBalances.push(EpochBalance({
+                epoch: _epoch,
+                balance: newBalance,
+                minimum: newBalance
+            }));
+        } else {
+            fromBalance.balance = uint256(fromBalance.balance).sub(_amount).toUint112();
+            fromBalance.minimum = fromBalance.minimum > _amount ? uint256(fromBalance.minimum).sub(_amount).toUint112() : 0;
+            accountEpochBalances[fromBalanceLength - 1] = fromBalance;
+        }
+    }
+
+    function _increaseVotingPower(address _account, uint256 _amount, uint32 _epoch) internal {
+        EpochBalance[] storage accountEpochBalances = epochBalances[_account];
+        uint256 toBalanceLength = accountEpochBalances.length;
+        EpochBalance memory toBalance;
+        if (toBalanceLength > 0) {
+            toBalance = accountEpochBalances[accountEpochBalances.length - 1];
+        }
+
+        if (toBalanceLength == 0 || toBalance.epoch < _epoch) {
+            uint112 newBalance = uint256(toBalance.balance).add(_amount).toUint112();
+            accountEpochBalances.push(EpochBalance({
+                epoch: _epoch,
+                balance: uint256(toBalance.balance).add(_amount).toUint112(),
+                minimum: toBalance.balance
+            }));
+        } else {
+            toBalance.balance = uint256(toBalance.balance).add(_amount).toUint112();
+            accountEpochBalances[toBalanceLength - 1] = toBalance;
+        }
     }
 
     function _currentVotes(address _account) internal view returns (uint112) {
