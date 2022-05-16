@@ -43,7 +43,7 @@ contract IntegrationTest is DSTest {
         token.approve(address(epochVoter), 100_000 ether);
         epochVoter.deposit(100_000 ether, address(this));
         cheats.warp(epochDuration);
-        (bytes32 executionHash, uint256 executionNonce) = governorBranch.requestProposal(calls, "");
+        (bytes32 executionHash, uint256 executionNonce) = governorBranch.createProposal(calls, "");
         cheats.warp(epochDuration*2);
         governorBranch.castVote(executionHash, 1, 1, epochDuration + 5 days, 1);
         cheats.warp(epochDuration + 5 days);
@@ -57,7 +57,7 @@ contract IntegrationTest is DSTest {
                 abi.encode(1, epochDuration + 5 days)
             )
         );
-        governorRoot.queueProposal(proposalHash, governorBranch);
+        governorRoot.approveProposal(proposalHash, governorBranch);
         governorBranch.executeProposal(block.chainid, address(governorBranch), 1, calls, 1, abi.encode(1, epochDuration + 5 days));
 
         assertTrue(!governorRoot.isBranch(governorBranch), "branch is no longer");

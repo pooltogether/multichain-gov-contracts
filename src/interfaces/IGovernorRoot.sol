@@ -2,7 +2,13 @@ pragma solidity 0.8.10;
 
 interface IGovernorRoot {
 
-    function requestProposal(bytes32 executionHash) external returns (bool);
+    function createProposal(
+        bytes32 executionHash
+    ) external returns (
+        uint256 rootNonce,
+        bytes32 proposalHash,
+        bytes memory data
+    );
 
     function addVotes(
         uint256 againstVotes,

@@ -14,7 +14,7 @@ The flow is like so:
 2. The GovernorRoot receives the proposal request and creates a new proposal hash, which includes the execution hash and the start epoch and end timestamp.
 3. Users submit their votes to each GovernorBranch. The root does not need to signal to the branch; users submit all data required to generate the proposal hash.
 4. After the end timestamp, the GovernorBranch can submit the vote totals to the GovernorRoot.
-5. If the proposal passes (grace period ends and quorum is met) anyone can tell the GovernorRoot to send the "queueProposal" message to a branch. This message includes the proposal hash. The message only needs to be sent to branches that have calls to execute. The GovernorBranch records the proposal hash as queued.
+5. If the proposal passes (grace period ends and quorum is met) anyone can tell the GovernorRoot to send the "approveProposal" message to a branch. This message includes the proposal hash. The message only needs to be sent to branches that have calls to execute. The GovernorBranch records the proposal hash as queued.
 6. Anyone can submit the full execution details to a GovernorBranch to execute the contents of a proposal.
 
 To see the above flow in action please refer to the [end-to-end integration test](./src/test/Integration.t.sol)

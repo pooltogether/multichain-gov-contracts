@@ -1,7 +1,7 @@
 pragma solidity 0.8.10;
 
 import "ds-test/test.sol";
-import "hardhat-core/console.sol";
+import "forge-std/console2.sol";
 
 import "./CheatCodes.sol";
 import "../interfaces/IEpochVoter.sol";
@@ -85,33 +85,33 @@ contract GovernorBranchTest is DSTest {
         assertEq(governorBranch.computeExecutionHash(calls, "", 1), executionHash, "exec hash matches");
     }
 
-    function testRequestProposalNoVotes() public {
+    function testApproveProposalNoVotes() public {
         cheats.expectRevert("does not have min votes");
-        try governorBranch.requestProposal(_makeCalls(), "hallo") {} catch {}
+        try governorBranch.createProposal(_makeCalls(), "hallo") {} catch {}
     }
 
-    function testRequestProposal() public {
+    function testApproveProposal() public {
         _mockCurrentVotes(10 ether);
 
         (GovernorBranch.Call[] memory calls, bytes32 executionHash) = _makeExecution(1);
 
         cheats.mockCall(
             address(governorRoot),
-            abi.encodeWithSelector(governorRoot.requestProposal.selector, executionHash),
-            abi.encode(true)
+            abi.encodeWithSelector(governorRoot.createProposal.selector, executionHash),
+            abi.encode(0,0,"")
         );
 
-        governorBranch.requestProposal(calls, "hallo");
+        governorBranch.createProposal(calls, "hallo");
     }
 
-    function testQueueProposal() public {
+    function testapproveProposal() public {
         cheats.prank(address(governorRoot));
         cheats.warp(8);
-        governorBranch.queueProposal(randomHash);
+        governorBranch.approveProposal(randomHash);
         (
             uint64 timestamp,
             bool executed
-        ) = governorBranch.queuedProposals(randomHash);
+        ) = governorBranch.approvedProposals(randomHash);
         assertEq(timestamp, 8, "timestamp matches");
         assertTrue(!executed, "has not been executed");
     }
@@ -127,7 +127,7 @@ contract GovernorBranchTest is DSTest {
                 ""
             )
         );
-        governorBranch.queueProposal(proposalHash);
+        governorBranch.approveProposal(proposalHash);
         cheats.expectCall(address(epochVoter), abi.encodeWithSelector(epochVoter.currentVotes.selector, address(this)));
         cheats.mockCall(address(epochVoter), abi.encodeWithSelector(epochVoter.currentVotes.selector, address(this)), abi.encode(10));
         governorBranch.executeProposal(
@@ -142,7 +142,7 @@ contract GovernorBranchTest is DSTest {
         (
             uint64 timestamp,
             bool executed
-        ) = governorBranch.queuedProposals(proposalHash);
+        ) = governorBranch.approvedProposals(proposalHash);
         assertTrue(executed, "proposal was executed");
     }
 

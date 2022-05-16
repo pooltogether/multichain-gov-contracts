@@ -5,8 +5,6 @@ import "./interfaces/IGovernorRoot.sol";
 import "./interfaces/IGovernorBranch.sol";
 import "openzeppelin-contracts/contracts/utils/Address.sol";
 
-import "hardhat-core/console.sol";
-
 contract GovernorBranch is IGovernorBranch {
 
     enum VoteType {
@@ -38,7 +36,7 @@ contract GovernorBranch is IGovernorBranch {
 
     uint256 public constant THRESHOLD = 10 ether;
 
-    mapping(bytes32 => Proposal) public queuedProposals;
+    mapping(bytes32 => Proposal) public approvedProposals;
     mapping(bytes32 => ProposalVote) public proposalVotes;
 
     uint256 nonce;
@@ -67,7 +65,7 @@ contract GovernorBranch is IGovernorBranch {
         ));
     }
 
-    function requestProposal(
+    function createProposal(
         Call[] calldata calls,
         bytes calldata message
     ) external returns (bytes32 executionHash, uint256 executionNonce) {
@@ -75,11 +73,11 @@ contract GovernorBranch is IGovernorBranch {
         executionNonce = nonce + 1;
         nonce = executionNonce;
         executionHash = computeExecutionHash(calls, message, executionNonce);
-        governorRoot.requestProposal(executionHash);
+        governorRoot.createProposal(executionHash);
     }
 
-    function queueProposal(bytes32 proposalHash) external override requireRoot(msg.sender) {
-        queuedProposals[proposalHash] = Proposal({
+    function approveProposal(bytes32 proposalHash) external override requireRoot(msg.sender) {
+        approvedProposals[proposalHash] = Proposal({
             timestamp: uint64(block.timestamp),
             executed: false
         });
@@ -107,7 +105,7 @@ contract GovernorBranch is IGovernorBranch {
                 data
             )
         );
-        Proposal memory proposal = queuedProposals[proposalHash];
+        Proposal memory proposal = approvedProposals[proposalHash];
         require(proposal.timestamp > 0, "proposal has not been queued");
         require(!proposal.executed, "proposal has already executed");
         for (uint i = 0; i < calls.length; i++) {
@@ -117,7 +115,7 @@ contract GovernorBranch is IGovernorBranch {
             }
         }
         proposal.executed = true;
-        queuedProposals[proposalHash] = proposal;
+        approvedProposals[proposalHash] = proposal;
     }
 
     function castVote(

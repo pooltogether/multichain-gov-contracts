@@ -46,16 +46,9 @@ contract GovernorRoot is IGovernorRoot {
         return branches[_branch];
     }
 
-    function requestProposal(
-        bytes32 executionHash
-    ) external override returns (bool) {
-        createProposal(executionHash);
-        return true;
-    }
-
     function createProposal(
         bytes32 executionHash
-    ) public requireBranch(msg.sender) returns (
+    ) external override requireBranch(msg.sender) returns (
         uint256 rootNonce,
         bytes32 proposalHash,
         bytes memory data
@@ -107,9 +100,9 @@ contract GovernorRoot is IGovernorRoot {
         );
     }
 
-    function queueProposal(bytes32 _proposalHash, IGovernorBranch _branch) external requireBranch(address(_branch)) {
+    function approveProposal(bytes32 _proposalHash, IGovernorBranch _branch) external requireBranch(address(_branch)) {
         require(hasPassed(_proposalHash), "has not passed");
-        _branch.queueProposal(_proposalHash);
+        _branch.approveProposal(_proposalHash);
     }
 
     modifier requireBranch(address _branch) {
