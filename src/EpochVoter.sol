@@ -15,8 +15,8 @@ abstract contract EpochVoter is ERC20, IEpochVoter {
     using SafeCast for uint256;
     using ExtendedSafeCast for uint256;
 
-    uint32 public duration;
-    uint32 public startTimestamp;
+    uint32 duration;
+    uint32 startTimestamp_;
 
     struct EpochBalance {
         uint32 epoch;
@@ -33,8 +33,16 @@ abstract contract EpochVoter is ERC20, IEpochVoter {
         uint32 _startTimestamp,
         uint32 _duration
     ) ERC20(_name, _symbol) {
-        startTimestamp = _startTimestamp;
+        startTimestamp_ = _startTimestamp;
         duration = _duration;
+    }
+    
+    function epochDuration() external override view returns (uint32) {
+        return duration;
+    }
+
+    function startTimestamp() external override view returns (uint64) {
+        return startTimestamp_;
     }
 
     function currentEpoch() external virtual view returns (uint32) {
@@ -42,7 +50,7 @@ abstract contract EpochVoter is ERC20, IEpochVoter {
     }
 
     function _currentEpoch() internal virtual view returns (uint32) {
-        return ((block.timestamp - startTimestamp) / duration).toUint32();
+        return ((block.timestamp - startTimestamp_) / duration).toUint32();
     }
 
     function delegationBalanceOf(address _delegator, address _delegatee) external view returns (uint256) {
