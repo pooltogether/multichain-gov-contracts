@@ -104,14 +104,14 @@ contract GovernorBranchTest is DSTest {
         governorBranch.createProposal(calls, "hallo");
     }
 
-    function testapproveProposal() public {
+    function testqueueProposal() public {
         cheats.prank(address(governorRoot));
         cheats.warp(8);
-        governorBranch.approveProposal(randomHash);
+        governorBranch.queueProposal(randomHash);
         (
             uint64 timestamp,
             bool executed
-        ) = governorBranch.approvedProposals(randomHash);
+        ) = governorBranch.queuedProposal(randomHash);
         assertEq(timestamp, 8, "timestamp matches");
         assertTrue(!executed, "has not been executed");
     }
@@ -124,10 +124,11 @@ contract GovernorBranchTest is DSTest {
             abi.encode(
                 executionHash,
                 1,
-                ""
+                1,
+                2
             )
         );
-        governorBranch.approveProposal(proposalHash);
+        governorBranch.queueProposal(proposalHash);
         cheats.expectCall(address(epochVoter), abi.encodeWithSelector(epochVoter.currentVotes.selector, address(this)));
         cheats.mockCall(address(epochVoter), abi.encodeWithSelector(epochVoter.currentVotes.selector, address(this)), abi.encode(10));
         governorBranch.executeProposal(
@@ -136,13 +137,14 @@ contract GovernorBranchTest is DSTest {
             1,
             calls,
             1,
-            ""
+            1,
+            2
         );
 
         (
             uint64 timestamp,
             bool executed
-        ) = governorBranch.approvedProposals(proposalHash);
+        ) = governorBranch.queuedProposal(proposalHash);
         assertTrue(executed, "proposal was executed");
     }
 
@@ -158,7 +160,7 @@ contract GovernorBranchTest is DSTest {
             1
         );
 
-        bytes32 proposalHash = keccak256(abi.encode(randomHash, 1, abi.encode(0, 5 days)));
+        bytes32 proposalHash = keccak256(abi.encode(randomHash, 1, 0, 5 days));
         (
             uint256 againstVotes,
             uint256 forVotes,
@@ -224,7 +226,7 @@ contract GovernorBranchTest is DSTest {
             5 days,
             1
         );
-        bytes32 proposalHash = keccak256(abi.encode(randomHash, 1, abi.encode(0, 5 days)));
+        bytes32 proposalHash = keccak256(abi.encode(randomHash, 1, 0, 5 days));
         cheats.expectCall(
             address(governorRoot),
             abi.encodeWithSelector(governorRoot.addVotes.selector, 0, 10 ether, 0, proposalHash)

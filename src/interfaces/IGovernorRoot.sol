@@ -7,7 +7,8 @@ interface IGovernorRoot {
     ) external returns (
         uint256 rootNonce,
         bytes32 proposalHash,
-        bytes memory data
+        uint32 startEpoch,
+        uint64 endTimestamp
     );
 
     function addVotes(

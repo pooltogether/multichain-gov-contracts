@@ -15,8 +15,8 @@ abstract contract EpochVoter is ERC20, IEpochVoter {
     using SafeCast for uint256;
     using ExtendedSafeCast for uint256;
 
-    uint32 duration;
-    uint32 startTimestamp;
+    uint32 public duration;
+    uint32 public startTimestamp;
 
     struct EpochBalance {
         uint32 epoch;

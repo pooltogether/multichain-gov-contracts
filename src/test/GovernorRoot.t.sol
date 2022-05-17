@@ -61,7 +61,8 @@ contract GovernorRootTest is DSTest {
     function _createProposal() internal returns (
         uint256 rootNonce,
         bytes32 proposalHash,
-        bytes memory data,
+        uint32 startEpoch,
+        uint64 endTimestamp,
         bytes32 executionHash
     ) {
         cheats.startPrank(address(governorBranch));
@@ -72,7 +73,8 @@ contract GovernorRootTest is DSTest {
         (
             rootNonce,
             proposalHash,
-            data
+            startEpoch,
+            endTimestamp
         ) = governorRoot.createProposal(executionHash);
         cheats.stopPrank();
     }
@@ -81,17 +83,20 @@ contract GovernorRootTest is DSTest {
         (
             uint256 rootNonce,
             bytes32 proposalHash,
-            bytes memory data,
+            uint32 startEpoch,
+            uint64 endTimestamp,
             bytes32 executionHash
         ) = _createProposal();
 
-        assertEq0(data, abi.encode(1, 5 days), "epoch and end timestamp encoded");
+        assertEq(startEpoch, 1, "epoch incorrect");
+        assertEq(endTimestamp, 5 days, "end timestamp incorrect");
         assertEq(rootNonce, 1, "root nonce matches");
         assertEq(proposalHash, keccak256(
             abi.encode(
                 executionHash,
                 rootNonce,
-                data
+                startEpoch,
+                endTimestamp
             )
         ), "proposal hash is correct");
         assertTrue(governorRoot.isProposal(proposalHash));
@@ -102,7 +107,8 @@ contract GovernorRootTest is DSTest {
         (
             uint256 rootNonce,
             bytes32 proposalHash,
-            bytes memory data,
+            uint32 startEpoch,
+            uint64 endTimestamp,
             bytes32 executionHash
         ) = _createProposal();
 
@@ -117,8 +123,8 @@ contract GovernorRootTest is DSTest {
         );
 
         (
-            uint32 epoch,
-            uint64 endTimestamp,
+            ,
+            ,
             uint256 againstVotes,
             uint256 forVotes,
             uint256 abstainVotes
@@ -130,7 +136,7 @@ contract GovernorRootTest is DSTest {
     }
 
     function testAddVotesTwice() public {
-        (,bytes32 proposalHash,,) = _createProposal();
+        (,bytes32 proposalHash,,,) = _createProposal();
 
         cheats.startPrank(address(governorBranch));
         _mockCurrentEpoch(2);
@@ -152,7 +158,7 @@ contract GovernorRootTest is DSTest {
     }
 
     function testHasPassed() public {
-        (,bytes32 proposalHash,,) = _createProposal();
+        (,bytes32 proposalHash,,,) = _createProposal();
         cheats.startPrank(address(governorBranch));
         _mockCurrentEpoch(2);
 

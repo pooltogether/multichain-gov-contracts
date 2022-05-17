@@ -2,7 +2,7 @@ pragma solidity 0.8.10;
 
 interface IGovernorBranch {
 
-    function approveProposal(
+    function queueProposal(
         bytes32 proposalHash
     ) external;
 

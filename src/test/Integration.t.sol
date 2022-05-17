@@ -1,6 +1,7 @@
 pragma solidity 0.8.10;
 
 import "ds-test/test.sol";
+import "forge-std/console2.sol";
 
 import "./CheatCodes.sol";
 import "../EscrowEpochVoter.sol";
@@ -43,8 +44,11 @@ contract IntegrationTest is DSTest {
         token.approve(address(epochVoter), 100_000 ether);
         epochVoter.deposit(100_000 ether, address(this));
         cheats.warp(epochDuration);
+        console2.log("current time: ", block.timestamp);
+        console2.log("current epoch: ", epochVoter.currentEpoch());
+        console2.log("current duration: ", epochDuration);
         (bytes32 executionHash, uint256 executionNonce) = governorBranch.createProposal(calls, "");
-        cheats.warp(epochDuration*2);
+        cheats.warp(epochDuration * 2);
         governorBranch.castVote(executionHash, 1, 1, epochDuration + 5 days, 1);
         cheats.warp(epochDuration + 5 days);
         governorBranch.addVotes(executionHash, 1, 1, epochDuration + 5 days);
@@ -54,11 +58,20 @@ contract IntegrationTest is DSTest {
             abi.encode(
                 executionHash,
                 1,
-                abi.encode(1, epochDuration + 5 days)
+                1,
+                epochDuration + 5 days
             )
         );
-        governorRoot.approveProposal(proposalHash, governorBranch);
-        governorBranch.executeProposal(block.chainid, address(governorBranch), 1, calls, 1, abi.encode(1, epochDuration + 5 days));
+        governorRoot.queueProposal(proposalHash, governorBranch);
+        governorBranch.executeProposal(
+            block.chainid,
+            address(governorBranch),
+            1,
+            calls,
+            1,
+            1,
+            epochDuration + 5 days
+        );
 
         assertTrue(!governorRoot.isBranch(governorBranch), "branch is no longer");
     }

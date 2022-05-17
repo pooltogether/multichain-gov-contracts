@@ -4,7 +4,25 @@ import "./interfaces/IEpochSource.sol";
 import "./interfaces/IGovernorRoot.sol";
 import "./interfaces/IGovernorBranch.sol";
 
+import "forge-std/console2.sol";
+
 contract GovernorRoot is IGovernorRoot {
+
+    event RootCreatedProposal(
+        bytes32 indexed proposalHash,
+        bytes32 indexed executionHash,
+        uint256 indexed rootNonce,
+        uint32 epoch,
+        uint64 endTimestamp
+    );
+
+    event AddedVotes(
+        bytes32 indexed proposalHash,
+        uint256 againstVotes,
+        uint256 forVotes,
+        uint256 abstainVotes,
+        address from
+    );
 
     uint256 public nonce;
 
@@ -51,22 +69,33 @@ contract GovernorRoot is IGovernorRoot {
     ) external override requireBranch(msg.sender) returns (
         uint256 rootNonce,
         bytes32 proposalHash,
-        bytes memory data
+        uint32 epoch,
+        uint64 endTimestamp
     ) {
         rootNonce = nonce + 1;
         nonce = rootNonce;
-        uint32 epoch = epochSource.currentEpoch();
-        uint64 endTimestamp = uint64(block.timestamp + VOTE_DURATION);
-        data = abi.encode(epoch, endTimestamp);
+        epoch = epochSource.currentEpoch();
+        endTimestamp = uint64(block.timestamp + VOTE_DURATION);
         proposalHash = keccak256(
             abi.encode(
                 executionHash,
                 rootNonce,
-                data
+                epoch,
+                endTimestamp
             )
         );
+        console2.log("epoch", epoch);
+        console2.log("endTimestamp", endTimestamp);
         proposals[proposalHash].epoch = epoch;
         proposals[proposalHash].endTimestamp = endTimestamp;
+
+        emit RootCreatedProposal(
+            proposalHash,
+            executionHash,
+            rootNonce,
+            epoch,
+            endTimestamp
+        );
     }
 
     function addVotes(
@@ -86,6 +115,14 @@ contract GovernorRoot is IGovernorRoot {
         proposals[proposalHash] = proposal;
         hasVoted[proposalHash][msg.sender] = true;
 
+        emit AddedVotes(
+            proposalHash,
+            againstVotes,
+            forVotes,
+            abstainVotes,
+            msg.sender
+        );
+
         return true;
     }
 
@@ -100,9 +137,9 @@ contract GovernorRoot is IGovernorRoot {
         );
     }
 
-    function approveProposal(bytes32 _proposalHash, IGovernorBranch _branch) external requireBranch(address(_branch)) {
+    function queueProposal(bytes32 _proposalHash, IGovernorBranch _branch) external requireBranch(address(_branch)) {
         require(hasPassed(_proposalHash), "has not passed");
-        _branch.approveProposal(_proposalHash);
+        _branch.queueProposal(_proposalHash);
     }
 
     modifier requireBranch(address _branch) {
